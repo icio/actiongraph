@@ -42,6 +42,9 @@ func main() {
 		}
 
 		for i := range actions {
+			// TODO: Flag to look at CmdReal/CmdUser instead? We can use the Cmd
+			// field being non-null to differentiate between cached and
+			// non-cached steps, too.
 			actions[i].Duration = actions[i].TimeDone.Sub(actions[i].TimeStart)
 		}
 		return nil
