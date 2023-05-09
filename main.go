@@ -1,13 +1,4 @@
 // Program actiongraph produces Graphviz visualisation of the Go build actiongraph.
-// Usage:
-//
-//	go build -debug-actiongraph=compile.json ./my-program
-//	actiongraph tree < compile.json
-//	actiongraph dot < compile.json > graph.dot
-//	dot -Tsvg graph.dot > graph.svg
-//
-//	actiongraph -o tree --cover 90% < compile.json
-//	actiongraph -o dot --to github.com/unravelin/core/lib/k8s < compile.json
 package main
 
 import (
