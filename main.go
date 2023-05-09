@@ -101,14 +101,18 @@ func addTopCommand(cmd *cobra.Command, actions *[]action) {
 		Use:     "top [-f compile.json] [-n limit]",
 		Short:   "List slowest build steps",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return top(*actions)
+			limit, err := cmd.Flags().GetInt("limit")
+			if err != nil {
+				return err
+			}
+			return top(*actions, limit)
 		},
 	}
 	topCmd.Flags().IntP("limit", "n", 10, "number of slowest build steps to show")
 	cmd.AddCommand(&topCmd)
 }
 
-func top(actions []action) error {
+func top(actions []action, limit int) error {
 	var tot time.Duration
 	for i := range actions {
 		tot += actions[i].Duration
@@ -120,7 +124,11 @@ func top(actions []action) error {
 
 	fmt.Println("Time Sec  Cum%\tMode\tPackage")
 	var cum time.Duration
-	for _, node := range actions {
+	for i, node := range actions {
+		if limit > 0 && i >= limit {
+			break
+		}
+
 		cum += node.Duration
 		fmt.Printf("% 8.3f % 4d%%\t%s\t%s\n", node.Duration.Seconds(), int(100*float64(cum)/float64(tot)), node.Mode, node.Package)
 	}
