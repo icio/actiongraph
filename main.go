@@ -262,7 +262,7 @@ func buildTree(actions []action) *pkgtree {
 		// Assume all packages without a "." are part of the standard library.
 		// TODO: Go modules don't need to start with a domain, so this is wrong.
 		pkg := act.Package
-		if !strings.Contains(pkg, ".") {
+		if isStdlib(pkg) {
 			pkg = "std/" + pkg
 		}
 
@@ -306,6 +306,11 @@ func buildTree(actions []action) *pkgtree {
 		actNode.id = act.ID
 	}
 	return &root
+}
+
+func isStdlib(pkg string) bool {
+	root, _, _ := strings.Cut(pkg, "/")
+	return !strings.Contains(root, ".")
 }
 
 // pruneTree removes dir grandchildren from root that are not in keep and resets
