@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	txttmpl "text/template"
 	"time"
 
 	"golang.org/x/exp/maps"
@@ -75,26 +76,26 @@ func openFile(path string) (io.ReadCloser, error) {
 }
 
 type action struct {
-	Duration time.Duration
+	ID        int
+	Mode      string
+	Package   string
+	Deps      []int
+	Objdir    string
+	Target    string
+	Priority  int
+	Built     string
+	BuildID   string
+	TimeReady time.Time
+	TimeStart time.Time
+	TimeDone  time.Time
+	Cmd       any
+	ActionID  string
+	CmdReal   int
+	CmdUser   int64
+	CmdSys    int
+	NeedBuild bool
 
-	ID        int       `json:"ID"`
-	Mode      string    `json:"Mode"`
-	Package   string    `json:"Package"`
-	Deps      []int     `json:"Deps,omitempty"`
-	Objdir    string    `json:"Objdir,omitempty"`
-	Target    string    `json:"Target,omitempty"`
-	Priority  int       `json:"Priority,omitempty"`
-	Built     string    `json:"Built,omitempty"`
-	BuildID   string    `json:"BuildID,omitempty"`
-	TimeReady time.Time `json:"TimeReady"`
-	TimeStart time.Time `json:"TimeStart"`
-	TimeDone  time.Time `json:"TimeDone"`
-	Cmd       any       `json:"Cmd"`
-	ActionID  string    `json:"ActionID,omitempty"`
-	CmdReal   int       `json:"CmdReal,omitempty"`
-	CmdUser   int64     `json:"CmdUser,omitempty"`
-	CmdSys    int       `json:"CmdSys,omitempty"`
-	NeedBuild bool      `json:"NeedBuild,omitempty"`
+	Duration time.Duration
 }
 
 func addTopCommand(cmd *cobra.Command, actions *[]action) {
@@ -103,18 +104,37 @@ func addTopCommand(cmd *cobra.Command, actions *[]action) {
 		Use:     "top [-f compile.json] [-n limit]",
 		Short:   "List slowest build steps",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			limit, err := cmd.Flags().GetInt("limit")
+			flags := cmd.Flags()
+			limit, err := flags.GetInt("limit")
 			if err != nil {
 				return err
 			}
-			return top(*actions, limit)
+
+			tmplStr, err := flags.GetString("tpl")
+			if err != nil {
+				return err
+			}
+			tmpl, err := txttmpl.New("top").Parse(tmplStr)
+			if err != nil {
+				return fmt.Errorf("parsing tpl: %w", err)
+			}
+
+			return top(os.Stdout, *actions, limit, tmpl)
 		},
 	}
-	topCmd.Flags().IntP("limit", "n", 10, "number of slowest build steps to show")
+	flags := topCmd.Flags()
+	flags.IntP("limit", "n", 20, "number of slowest build steps to show")
+	flags.String("tpl", `{{ printf "% 8.3f% 7.2f" .Duration.Seconds .CumulativePercent }}%  {{.Mode}}	{{.Package}}`, "template for output")
 	cmd.AddCommand(&topCmd)
 }
 
-func top(actions []action, limit int) error {
+type topAction struct {
+	action
+	Percent           float64
+	CumulativePercent float64
+}
+
+func top(out io.Writer, actions []action, limit int, tmpl *txttmpl.Template) error {
 	var tot time.Duration
 	for i := range actions {
 		tot += actions[i].Duration
@@ -124,7 +144,6 @@ func top(actions []action, limit int) error {
 		return actions[i].Duration >= actions[j].Duration
 	})
 
-	fmt.Println("Time Sec  Cum%\tMode\tPackage")
 	var cum time.Duration
 	for i, node := range actions {
 		if limit > 0 && i >= limit {
@@ -132,7 +151,15 @@ func top(actions []action, limit int) error {
 		}
 
 		cum += node.Duration
-		fmt.Printf("% 8.3f % 4d%%\t%s\t%s\n", node.Duration.Seconds(), int(100*float64(cum)/float64(tot)), node.Mode, node.Package)
+		err := tmpl.Execute(out, topAction{
+			action:            node,
+			Percent:           100 * float64(node.Duration) / float64(tot),
+			CumulativePercent: 100 * float64(cum) / float64(tot),
+		})
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(out)
 	}
 	return nil
 }
