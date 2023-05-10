@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	txttmpl "text/template"
+	txttpl "text/template"
 	"time"
 
 	"golang.org/x/exp/maps"
@@ -26,8 +26,26 @@ func main() {
 		SilenceErrors: true,
 	}
 
-	// Parse flag -f into the actions, for all programs.
-	var actions []action
+	// Parse the global, shared options and data.
+	opt := options{
+		out: os.Stdout,
+		funcs: txttpl.FuncMap{
+			"base": filepath.Base,
+			"dir":  filepath.Dir,
+			"seconds": func(d time.Duration) string {
+				return fmt.Sprintf("%.3fs", d.Seconds())
+			},
+			"percent": func(v float64) string {
+				return fmt.Sprintf("%.2f%%", v)
+			},
+			"right": func(n int, s string) string {
+				if len(s) > n {
+					return s
+				}
+				return strings.Repeat(" ", n-len(s)) + s
+			},
+		},
+	}
 	prog.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		fn, err := cmd.Flags().GetString("file")
 		if err != nil {
@@ -40,23 +58,28 @@ func main() {
 		}
 		defer f.Close()
 
-		if err := json.NewDecoder(f).Decode(&actions); err != nil {
+		if err := json.NewDecoder(f).Decode(&opt.actions); err != nil {
 			return fmt.Errorf("decoding input: %w", err)
 		}
 
-		for i := range actions {
+		for i := range opt.actions {
 			// TODO: Flag to look at CmdReal/CmdUser instead? We can use the Cmd
 			// field being non-null to differentiate between cached and
 			// non-cached steps, too.
-			actions[i].Duration = actions[i].TimeDone.Sub(actions[i].TimeStart)
+			d := opt.actions[i].TimeDone.Sub(opt.actions[i].TimeStart)
+			opt.actions[i].Duration = d
+			opt.total += d
+		}
+		for i := range opt.actions {
+			opt.actions[i].Percent = 100 * float64(opt.actions[i].Duration) / float64(opt.total)
 		}
 		return nil
 	}
 	prog.PersistentFlags().StringP("file", "f", "-", "JSON file to read (use - for stdin)")
 
-	addTopCommand(&prog, &actions)
-	addTreeCommand(&prog, &actions)
-	addDotCommand(&prog, &actions)
+	addTopCommand(&prog, &opt)
+	addTreeCommand(&prog, &opt)
+	addDotCommand(&prog, &opt)
 
 	prog.AddGroup(&cobra.Group{
 		ID:    "actiongraph",
@@ -66,6 +89,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "actiongraph: %s\n", err)
 		os.Exit(1)
 	}
+}
+
+type options struct {
+	out     io.Writer
+	funcs   txttpl.FuncMap
+	actions []action
+	total   time.Duration
 }
 
 func openFile(path string) (io.ReadCloser, error) {
@@ -96,9 +126,10 @@ type action struct {
 	NeedBuild bool
 
 	Duration time.Duration
+	Percent  float64
 }
 
-func addTopCommand(cmd *cobra.Command, actions *[]action) {
+func addTopCommand(cmd *cobra.Command, opt *options) {
 	topCmd := cobra.Command{
 		GroupID: "actiongraph",
 		Use:     "top [-f compile.json] [-n limit]",
@@ -110,35 +141,26 @@ func addTopCommand(cmd *cobra.Command, actions *[]action) {
 				return err
 			}
 
-			tmplStr, err := flags.GetString("tpl")
+			tplStr, err := flags.GetString("tpl")
 			if err != nil {
 				return err
 			}
-			tmpl, err := txttmpl.New("top").Parse(tmplStr)
+			tpl, err := txttpl.New("top").Funcs(opt.funcs).Parse(tplStr)
 			if err != nil {
 				return fmt.Errorf("parsing tpl: %w", err)
 			}
 
-			return top(os.Stdout, *actions, limit, tmpl)
+			return top(opt, limit, tpl)
 		},
 	}
 	flags := topCmd.Flags()
 	flags.IntP("limit", "n", 20, "number of slowest build steps to show")
-	flags.String("tpl", `{{ printf "% 8.3f% 7.2f" .Duration.Seconds .CumulativePercent }}%  {{.Mode}}	{{.Package}}`, "template for output")
+	flags.String("tpl", `{{ .Duration | seconds | right 8 }}{{ .CumulativePercent | percent | right 8 }}  {{.Mode}}	{{.Package}}`, "template for output")
 	cmd.AddCommand(&topCmd)
 }
 
-type topAction struct {
-	action
-	Percent           float64
-	CumulativePercent float64
-}
-
-func top(out io.Writer, actions []action, limit int, tmpl *txttmpl.Template) error {
-	var tot time.Duration
-	for i := range actions {
-		tot += actions[i].Duration
-	}
+func top(opt *options, limit int, tpl *txttpl.Template) error {
+	actions := opt.actions
 
 	sort.Slice(actions, func(i, j int) bool {
 		return actions[i].Duration >= actions[j].Duration
@@ -151,20 +173,26 @@ func top(out io.Writer, actions []action, limit int, tmpl *txttmpl.Template) err
 		}
 
 		cum += node.Duration
-		err := tmpl.Execute(out, topAction{
+		err := tpl.Execute(opt.out, topAction{
 			action:            node,
-			Percent:           100 * float64(node.Duration) / float64(tot),
-			CumulativePercent: 100 * float64(cum) / float64(tot),
+			Percent:           100 * float64(node.Duration) / float64(opt.total),
+			CumulativePercent: 100 * float64(cum) / float64(opt.total),
 		})
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(out)
+		fmt.Fprintln(opt.out)
 	}
 	return nil
 }
 
-func addTreeCommand(prog *cobra.Command, actions *[]action) {
+type topAction struct {
+	action
+	Percent           float64
+	CumulativePercent float64
+}
+
+func addTreeCommand(prog *cobra.Command, opt *options) {
 	cmd := cobra.Command{
 		GroupID: "actiongraph",
 		Use:     "tree [-m] [-f compile.json] [package...]",
@@ -177,17 +205,38 @@ func addTreeCommand(prog *cobra.Command, actions *[]action) {
 				return nil
 			}
 
-			return tree(*actions, level, args)
+			tplStr, err := flags.GetString("tpl")
+			if err != nil {
+				return err
+			}
+			tpl, err := txttpl.New("top").Funcs(opt.funcs).Parse(tplStr)
+			if err != nil {
+				return fmt.Errorf("parsing tpl: %w", err)
+			}
+
+			return tree(opt, level, args, tpl)
 		},
 	}
 
 	flags := cmd.Flags()
 	flags.IntP("level", "L", -1, "descend only level directories deep (-ve for unlimited)")
+	flags.String("tpl", `{{ .CumulativeDuration | seconds | right 8 }}{{ if eq .ID -1 }}          {{ else }}{{ .Duration | seconds | right 8 }}{{ end }} {{.Indent}}{{.Package}}`, "template for output")
 
 	prog.AddCommand(&cmd)
 }
 
-func tree(actions []action, level int, focus []string) error {
+type treeAction struct {
+	ID                 int
+	Package            string
+	Indent             string
+	Depth              int
+	CumulativeDuration time.Duration
+	CumulativePercent  float64
+	action
+}
+
+func tree(opt *options, level int, focus []string, tpl *txttpl.Template) error {
+	actions := opt.actions
 	root := buildTree(actions)
 
 	if len(focus) != 0 {
@@ -219,13 +268,22 @@ func tree(actions []action, level int, focus []string) error {
 		}
 
 		// Display the node.
-		var ds string
-		if n.id == -1 {
-			ds = "        "
-		} else {
-			ds = fmtD(actions[n.id].Duration)
+		node := treeAction{
+			ID:                 n.id,
+			Package:            n.path,
+			Depth:              n.depth,
+			Indent:             strings.Repeat("  ", last),
+			CumulativePercent:  100 * float64(n.d) / float64(opt.total),
+			CumulativeDuration: n.d,
 		}
-		fmt.Printf("%s %s %s%s\n", fmtD(n.d), ds, strings.Repeat("  ", last), n.path)
+		if n.id > 0 {
+			node.action = actions[n.id]
+		}
+		err := tpl.Execute(opt.out, node)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(opt.out)
 
 		// Step into the children.
 		if len(n.dir) > 0 {
@@ -249,7 +307,7 @@ type pkgtree struct {
 
 func buildTree(actions []action) *pkgtree {
 	root := pkgtree{
-		path: "/ (total)",
+		path: "(root)",
 		id:   -1,
 	}
 
@@ -358,11 +416,7 @@ func pruneTree(root, keep *pkgtree) {
 	}
 }
 
-func fmtD(d time.Duration) string {
-	return fmt.Sprintf("% 8.3f", d.Seconds())
-}
-
-func addDotCommand(prog *cobra.Command, actions *[]action) {
+func addDotCommand(prog *cobra.Command, opt *options) {
 	cmd := cobra.Command{
 		GroupID: "actiongraph",
 		Use:     "dot [-f compile.json] [--why PKG]",
@@ -373,14 +427,16 @@ func addDotCommand(prog *cobra.Command, actions *[]action) {
 				return err
 			}
 
-			return dot(*actions, why)
+			return dot(opt, why)
 		},
 	}
 	cmd.Flags().String("why", "", "show only paths to the given package")
 	prog.AddCommand(&cmd)
 }
 
-func dot(actions []action, why string) error {
+func dot(opt *options, why string) error {
+	actions := opt.actions
+
 	// Find the first build step.
 	start := -1
 	for _, act := range actions {
@@ -453,23 +509,13 @@ func dot(actions []action, why string) error {
 		}
 	}
 
-	fmt.Println("digraph {")
+	fmt.Fprintln(opt.out, "digraph {")
 	for i, g := range guide {
 		if g != follow {
 			continue
 		}
 		act := actions[i]
-
-		// secs := strings.Split(act.Package, "/")
-		// secs = secs[:len(secs)-1]
-		// for _, sec := range secs {
-		// 	fmt.Printf("subgraph %q { graph[label=%q] ", "cluster_"+sec, sec)
-		// }
-		fmt.Printf("%d [label=<%s>; shape=box];\n", i, "<FONT POINT-SIZE=\"12\">"+filepath.Dir(act.Package)+"</FONT><BR/><FONT POINT-SIZE=\"22\">"+filepath.Base(act.Package)+"</FONT><BR/>"+act.Mode+" "+act.TimeDone.Sub(act.TimeStart).String())
-		// for range secs {
-		// 	fmt.Print(" }")
-		// }
-		fmt.Println()
+		fmt.Fprintf(opt.out, "%d [label=<%s>; shape=box];\n", i, "<FONT POINT-SIZE=\"12\">"+filepath.Dir(act.Package)+"</FONT><BR/><FONT POINT-SIZE=\"22\">"+filepath.Base(act.Package)+"</FONT><BR/>"+act.Mode+" "+act.TimeDone.Sub(act.TimeStart).String())
 
 		for _, dep := range act.Deps {
 			if guide[dep] != follow {
@@ -478,7 +524,7 @@ func dot(actions []action, why string) error {
 			fmt.Printf("\t%d -> %d;\n", i, dep)
 		}
 	}
-	fmt.Println("}")
+	fmt.Fprintln(opt.out, "}")
 
 	return nil
 }
