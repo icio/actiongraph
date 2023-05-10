@@ -20,7 +20,9 @@ import (
 
 func main() {
 	prog := cobra.Command{
-		Use: "actiongraph",
+		Use:           "actiongraph",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
 
 	// Parse flag -f into the actions, for all programs.
@@ -38,7 +40,7 @@ func main() {
 		defer f.Close()
 
 		if err := json.NewDecoder(f).Decode(&actions); err != nil {
-			return fmt.Errorf("decoding JSON: %w", err)
+			return fmt.Errorf("decoding input: %w", err)
 		}
 
 		for i := range actions {
