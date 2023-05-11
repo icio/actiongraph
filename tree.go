@@ -39,7 +39,7 @@ func addTreeCommand(prog *cobra.Command, opt *options) {
 
 	flags := cmd.Flags()
 	flags.IntP("level", "L", -1, "descend only level directories deep (-ve for unlimited)")
-	flags.String("tpl", `{{ .CumulativeDuration | seconds | right 8 }}{{ if eq .ID -1 }}          {{ else }}{{ .Duration | seconds | right 8 }}{{ end }} {{.Indent}}{{.Package}}`, "template for output")
+	flags.String("tpl", `{{ .CumulativeDuration | seconds | right 8 }}{{ if eq .ID -1 }}        {{ else }}{{ .Duration | seconds | right 8 }}{{ end }} {{.Indent}}{{.Package}}`, "template for output")
 
 	prog.AddCommand(&cmd)
 }
