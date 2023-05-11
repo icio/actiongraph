@@ -9,12 +9,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func addTopCommand(cmd *cobra.Command, opt *options) {
+func addTopCommand(cmd *cobra.Command) {
 	topCmd := cobra.Command{
 		GroupID: "actiongraph",
 		Use:     "top [-f compile.json] [-n limit]",
 		Short:   "List slowest build steps",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			opt, err := loadOptions(cmd)
+			if err != nil {
+				return err
+			}
+
 			flags := cmd.Flags()
 			limit, err := flags.GetInt("limit")
 			if err != nil {

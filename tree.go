@@ -11,13 +11,18 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func addTreeCommand(prog *cobra.Command, opt *options) {
+func addTreeCommand(prog *cobra.Command) {
 	cmd := cobra.Command{
 		GroupID: "actiongraph",
 		Use:     "tree [-m] [-f compile.json] [package...]",
 		Short:   "Total build times by directory",
 		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			opt, err := loadOptions(cmd)
+			if err != nil {
+				return err
+			}
+
 			flags := cmd.Flags()
 			level, err := flags.GetInt("level")
 			if err != nil {
@@ -39,7 +44,7 @@ func addTreeCommand(prog *cobra.Command, opt *options) {
 
 	flags := cmd.Flags()
 	flags.IntP("level", "L", -1, "descend only level directories deep (-ve for unlimited)")
-	flags.String("tpl", `{{ .CumulativeDuration | seconds | right 8 }}{{ if eq .ID -1 }}        {{ else }}{{ .Duration | seconds | right 8 }}{{ end }} {{.Indent}}{{.Package}}`, "template for output")
+	flags.String("tpl", `{{ .CumulativeDuration | seconds | right 8 }} {{ if eq .ID -1 }}        {{ else }}{{ .Duration | seconds | right 8 }}{{ end }} {{.Indent}}{{.Package}}`, "template for output")
 
 	prog.AddCommand(&cmd)
 }

@@ -14,31 +14,54 @@ import (
 )
 
 func Main() {
-	err := Run(DefaultArgs())
+	err := Run(os.Args[1:]...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "actiongraph: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func DefaultArgs() Args {
-	return Args{
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		args:   os.Args[1:],
-	}
-}
-
-func Run(args Args) error {
-	prog := cobra.Command{
+func Run(args ...string) error {
+	prog := &cobra.Command{
 		Use:           "actiongraph",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	prog.PersistentFlags().StringP("file", "f", "-", "JSON file to read (use - for stdin)")
 
-	// Parse the global, shared options and data.
+	addTopCommand(prog)
+	addTreeCommand(prog)
+	addGraphCommand(prog)
+
+	prog.AddGroup(&cobra.Group{
+		ID:    "actiongraph",
+		Title: "Actiongraph",
+	})
+
+	prog.SetArgs(args)
+	return prog.Execute()
+}
+
+type Args struct {
+	stdin  io.Reader
+	stdout io.Writer
+	args   []string
+}
+
+type options struct {
+	Args
+	funcs   txttpl.FuncMap
+	actions []action
+	total   time.Duration
+}
+
+func loadOptions(cmd *cobra.Command) (*options, error) {
 	opt := options{
-		Args: args,
+		Args: Args{
+			stdin:  cmd.InOrStdin(),
+			stdout: cmd.OutOrStdout(),
+			args:   cmd.Flags().Args(),
+		},
 		funcs: txttpl.FuncMap{
 			"base": filepath.Base,
 			"dir":  filepath.Dir,
@@ -56,70 +79,45 @@ func Run(args Args) error {
 			},
 		},
 	}
-	prog.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Open the actiongraph JSON file.
-		fn, err := cmd.Flags().GetString("file")
-		if err != nil {
-			return err
-		}
-		f, err := openFile(opt.stdin, fn)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
 
-		// Decode the actions.
-		if err := json.NewDecoder(f).Decode(&opt.actions); err != nil {
-			return fmt.Errorf("decoding input: %w", err)
-		}
-
-		// A few top-level calculations.
-		for i := range opt.actions {
-			// TODO: Flag to look at CmdReal/CmdUser instead? We can use the Cmd
-			// field being non-null to differentiate between cached and
-			// non-cached steps, too.
-			d := opt.actions[i].TimeDone.Sub(opt.actions[i].TimeStart)
-			opt.actions[i].Duration = d
-			opt.total += d
-		}
-		for i := range opt.actions {
-			opt.actions[i].Percent = 100 * float64(opt.actions[i].Duration) / float64(opt.total)
-		}
-		return nil
+	// Open the actiongraph JSON file.
+	fn, err := cmd.Flags().GetString("file")
+	if err != nil {
+		return nil, err
 	}
-	prog.PersistentFlags().StringP("file", "f", "-", "JSON file to read (use - for stdin)")
-
-	addTopCommand(&prog, &opt)
-	addTreeCommand(&prog, &opt)
-	addGraphCommand(&prog, &opt)
-
-	prog.AddGroup(&cobra.Group{
-		ID:    "actiongraph",
-		Title: "Actiongraph",
-	})
-
-	prog.SetArgs(args.args)
-	return prog.Execute()
-}
-
-type Args struct {
-	stdin  io.Reader
-	stdout io.Writer
-	args   []string
-}
-
-type options struct {
-	Args
-	funcs   txttpl.FuncMap
-	actions []action
-	total   time.Duration
-}
-
-func openFile(stdin io.Reader, path string) (io.ReadCloser, error) {
-	if path == "-" {
-		return io.NopCloser(stdin), nil
+	f, err := openFile(fn)
+	if err != nil {
+		return nil, err
 	}
-	return os.Open(path)
+	defer f.Close()
+
+	// Decode the actions.
+	if err := json.NewDecoder(f).Decode(&opt.actions); err != nil {
+		return nil, fmt.Errorf("decoding input: %w", err)
+	}
+
+	// A few top-level calculations.
+	for i := range opt.actions {
+		// TODO: Flag to look at CmdReal/CmdUser instead? We can use the Cmd
+		// field being non-null to differentiate between cached and
+		// non-cached steps, too.
+		d := opt.actions[i].TimeDone.Sub(opt.actions[i].TimeStart)
+		opt.actions[i].Duration = d
+		opt.total += d
+	}
+	for i := range opt.actions {
+		opt.actions[i].Percent = 100 * float64(opt.actions[i].Duration) / float64(opt.total)
+	}
+	return &opt, nil
+}
+
+func openFile(path string) (*os.File, error) {
+	switch path {
+	case "", "-", "/dev/stdin", "/dev/fd/0":
+		return os.Stdin, nil
+	default:
+		return os.Open(path)
+	}
 }
 
 type action struct {
