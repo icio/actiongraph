@@ -1,0 +1,36 @@
+digraph {
+3 [label=<<FONT POINT-SIZE="12">github.com/derailed</FONT><BR/><FONT POINT-SIZE="22">k9s</FONT><BR/>build 17.056302ms>; shape=box];
+	3 -> 5;
+5 [label=<<FONT POINT-SIZE="12">github.com/derailed/k9s</FONT><BR/><FONT POINT-SIZE="22">cmd</FONT><BR/>build 170.344979ms>; shape=box];
+	5 -> 22;
+	5 -> 23;
+22 [label=<<FONT POINT-SIZE="12">github.com/derailed/k9s/internal</FONT><BR/><FONT POINT-SIZE="22">ui</FONT><BR/>build 750.135239ms>; shape=box];
+	22 -> 98;
+	22 -> 99;
+23 [label=<<FONT POINT-SIZE="12">github.com/derailed/k9s/internal</FONT><BR/><FONT POINT-SIZE="22">view</FONT><BR/>build 1.795657517s>; shape=box];
+	23 -> 98;
+	23 -> 99;
+	23 -> 112;
+	23 -> 22;
+	23 -> 115;
+	23 -> 117;
+98 [label=<<FONT POINT-SIZE="12">github.com/derailed/k9s/internal</FONT><BR/><FONT POINT-SIZE="22">dao</FONT><BR/>build 788.569378ms>; shape=box];
+	98 -> 277;
+99 [label=<<FONT POINT-SIZE="12">github.com/derailed/k9s/internal</FONT><BR/><FONT POINT-SIZE="22">model</FONT><BR/>build 444.912435ms>; shape=box];
+	99 -> 98;
+	99 -> 117;
+112 [label=<<FONT POINT-SIZE="12">github.com/derailed/k9s/internal</FONT><BR/><FONT POINT-SIZE="22">perf</FONT><BR/>build 43.795665ms>; shape=box];
+	112 -> 98;
+115 [label=<<FONT POINT-SIZE="12">github.com/derailed/k9s/internal/ui</FONT><BR/><FONT POINT-SIZE="22">dialog</FONT><BR/>build 41.487591ms>; shape=box];
+	115 -> 22;
+117 [label=<<FONT POINT-SIZE="12">github.com/derailed/k9s/internal</FONT><BR/><FONT POINT-SIZE="22">xray</FONT><BR/>build 345.505127ms>; shape=box];
+	117 -> 98;
+277 [label=<<FONT POINT-SIZE="12">github.com/derailed/popeye</FONT><BR/><FONT POINT-SIZE="22">pkg</FONT><BR/>build 364.880583ms>; shape=box];
+	277 -> 526;
+526 [label=<<FONT POINT-SIZE="12">github.com/aws/aws-sdk-go/service/s3</FONT><BR/><FONT POINT-SIZE="22">s3manager</FONT><BR/>build 356.912126ms>; shape=box];
+	526 -> 700;
+	526 -> 701;
+700 [label=<<FONT POINT-SIZE="12">github.com/aws/aws-sdk-go/service</FONT><BR/><FONT POINT-SIZE="22">s3</FONT><BR/>build 5.070865122s>; shape=box];
+701 [label=<<FONT POINT-SIZE="12">github.com/aws/aws-sdk-go/service/s3</FONT><BR/><FONT POINT-SIZE="22">s3iface</FONT><BR/>build 444.346913ms>; shape=box];
+	701 -> 700;
+}
