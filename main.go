@@ -27,7 +27,12 @@ func run(args ...string) error {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+
 	prog.PersistentFlags().StringP("file", "f", "-", "JSON file to read (use - for stdin)")
+	prog.MarkFlagRequired("file")
+	prog.RegisterFlagCompletionFunc("file", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"json"}, cobra.ShellCompDirectiveFilterFileExt
+	})
 
 	addTopCommand(prog)
 	addTreeCommand(prog)
@@ -42,14 +47,10 @@ func run(args ...string) error {
 	return prog.Execute()
 }
 
-type Args struct {
-	stdin  io.Reader
-	stdout io.Writer
-	args   []string
-}
-
 type options struct {
-	Args
+	stdin   io.Reader
+	stdout  io.Writer
+	args    []string
 	funcs   txttpl.FuncMap
 	actions []action
 	total   time.Duration
@@ -57,11 +58,10 @@ type options struct {
 
 func loadOptions(cmd *cobra.Command) (*options, error) {
 	opt := options{
-		Args: Args{
-			stdin:  cmd.InOrStdin(),
-			stdout: cmd.OutOrStdout(),
-			args:   cmd.Flags().Args(),
-		},
+		stdin:  cmd.InOrStdin(),
+		stdout: cmd.OutOrStdout(),
+		args:   cmd.Flags().Args(),
+
 		funcs: txttpl.FuncMap{
 			"base": filepath.Base,
 			"dir":  filepath.Dir,

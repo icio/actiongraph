@@ -19,16 +19,16 @@ steps and dependencies between packages.
     go build -debug-actiongraph=compile.json ./my-prog
 
     # Show the slowest individual packages:
-    actiongraph top < compile.json
+    actiongraph top -f compile.json
 
     # Show aggregate time spent compiling nested packages:
-    actiongraph tree < compile.json
+    actiongraph tree -f compile.json
 
     # Show aggregate time spent compiling github packages:
     actiongraph tree -f compile.json -L 2 github.com
 
     # Render dependency diagrams of packages, focusing on why PKG was compiled in:
-    actiongraph graph --why PKG < compile.json > compile-pkg.dot
+    actiongraph graph --why PKG -f compile.json > compile-pkg.dot
     dot -Tsvg -Grankdir=LR < compile-pkg.dot > compile-pkg.svg
 
 ## Worked example
@@ -64,7 +64,7 @@ We should have a new file called `k9s.json` describing the actiongraph. Let's ta
 
 So let's find the compile steps that took the longest:
 
-    $ actiongraph < k9s.json top
+    $ actiongraph -f k9s.json top
       9.016s   2.75%  build k8s.io/api/core/v1
       6.026s   4.59%  link  github.com/derailed/k9s
       5.071s   6.13%  build github.com/aws/aws-sdk-go/service/s3
@@ -90,7 +90,7 @@ By default, `actiongraph top` will show the 20 slowest steps. This may be
 overridden using the `-n0` flag. For example, to get the fastest steps we could
 check:
 
-    $ actiongraph < k9s.json top -n0 | tail -5
+    $ actiongraph -f k9s.json top -n0 | tail -5
       0.006s 100.00%  build google.golang.org/protobuf/internal/flags
       0.000s 100.00%  link-install  github.com/derailed/k9s
       0.000s 100.00%  nop
@@ -103,7 +103,7 @@ time spent up to that package.
 We can summarise the time spent within package domain/directories using the
 `tree` subcommand:
 
-    $ actiongraph < k9s.json tree -L 1
+    $ actiongraph -f k9s.json tree -L 1
     322.013s          (root)
     154.673s            k8s.io
      83.357s            github.com
@@ -121,7 +121,7 @@ We can see that we spent 322 seconds compiling k9s, though some of that compilat
 
 We've rolled up all standard libraries under `std`:
 
-    $ actiongraph < k9s.json tree encoding
+    $ actiongraph -f k9s.json tree encoding
     322.013s          (root)
      40.294s            std
       1.942s   0.017s     std/encoding
@@ -137,7 +137,7 @@ We've rolled up all standard libraries under `std`:
 
 Let's look at which github repos are taking the longest to compile:
 
-    $ actiongraph < k9s.json tree github.com -L 2 | head -15
+    $ actiongraph -f k9s.json tree github.com -L 2 | head -15
     322.013s          (root)
      83.357s            github.com
      17.307s              github.com/aws
@@ -156,7 +156,7 @@ Let's look at which github repos are taking the longest to compile:
 
 We saw from `top` that package github.com/aws/aws-sdk-go/service/s3 was one of the slowest to compile. To understand why, we're going to use the `graph` subcommand which can filter down the dependency list to highlight all import paths leading from our build target to the package indicated by `--why PKG`:
 
-    actiongraph < k9s.json graph --why github.com/aws/aws-sdk-go/service/s3 > k9s-s3.dot
+    actiongraph -f k9s.json graph --why github.com/aws/aws-sdk-go/service/s3 > k9s-s3.dot
 
 and then render it using [Graphviz](https://graphviz.org/)'s `dot`:
 
