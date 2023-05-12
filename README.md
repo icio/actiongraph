@@ -54,7 +54,7 @@ Compile and install to a temporary directory:
 
     GOBIN=$(mktemp -d) go install -debug-actiongraph=k9s.json github.com/derailed/k9s@v0.27.4
 
-We should have a new file called `k9s.json` describing the actiongraph. Let's take a look at the first few entries `jq '.[:5] | .[]' -c < k9s.json | clipcopy`:
+We should have a new file called `k9s.json` describing the actiongraph. Let's take a look at the first few entries `jq '.[:5] | .[]' -c < k9s.json`:
 
     {"ID":0,"Mode":"go install","Package":"","Deps":[1],"Priority":1190,"TimeReady":"2023-05-12T09:24:39.647607494+01:00","TimeStart":"2023-05-12T09:24:39.647610965+01:00","TimeDone":"2023-05-12T09:24:39.647611018+01:00","Cmd":null}
     {"ID":1,"Mode":"link-install","Package":"github.com/derailed/k9s","Deps":[2],"Objdir":"/tmp/go-build3966251150/b001/","Target":"/tmp/tmp.WIZyR7yX3Y/k9s","Priority":1189,"Built":"/tmp/tmp.WIZyR7yX3Y/k9s","BuildID":"LZKyYv0RT8N-_YjcRQ1R/PsuartwNDnqAz2PYjtcW/lvWIs0IgoEnXVRitK8yx/ClYoHVGOEFtTZ-Gnzq2h","TimeReady":"2023-05-12T09:24:39.647340894+01:00","TimeStart":"2023-05-12T09:24:39.647348289+01:00","TimeDone":"2023-05-12T09:24:39.647607252+01:00","Cmd":null}
