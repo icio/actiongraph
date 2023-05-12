@@ -2,12 +2,12 @@ package actiongraph
 
 import (
 	"fmt"
-	"maps"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
