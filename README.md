@@ -7,7 +7,7 @@ steps and dependencies between packages.
 
 ## Installation
 
-    go install github.com/unravelin/actiongraph/cmd/actiongraph@latest
+    go install github.com/unravelin/actiongraph@latest
 
 ## Usage overview
 

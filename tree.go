@@ -1,4 +1,4 @@
-package actiongraph
+package main
 
 import (
 	"fmt"
