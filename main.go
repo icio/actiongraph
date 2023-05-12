@@ -1,4 +1,4 @@
-package actiongraph
+package main
 
 import (
 	"encoding/json"
@@ -13,15 +13,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func Main() {
-	err := Run(os.Args[1:]...)
+func main() {
+	err := run(os.Args[1:]...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "actiongraph: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func Run(args ...string) error {
+func run(args ...string) error {
 	prog := &cobra.Command{
 		Use:           "actiongraph",
 		SilenceUsage:  true,
