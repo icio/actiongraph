@@ -35,7 +35,7 @@ func Run(args ...string) error {
 
 	prog.AddGroup(&cobra.Group{
 		ID:    "actiongraph",
-		Title: "Actiongraph",
+		Title: "Actiongraph:",
 	})
 
 	prog.SetArgs(args)
