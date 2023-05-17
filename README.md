@@ -3,7 +3,7 @@
 > 👋 We wrote this to figure out why our CI had slowed down a bit and found
 > something was accidentally compiling in much more Kubernetes than an offline
 > CLI needed. If you enjoy writing performant Go too, please do considering
-> joining us in the fight against fraud: https://www.ravelin.com/careers
+> joining us in the fight against fraud: [ravelin.com/careers].
 
 `actiongraph` is a CLI for investigating where `go build` is spending its time
 compiling. It consumes the file written using the compile.json output by `go
@@ -191,3 +191,5 @@ utilises the multiple cores on our machine when compiling each package:
 
 At the time of writing, `-debug-trace` is under development in
 https://github.com/golang/go/issues/38714.
+
+[ravelin.com/careers]: https://www.ravelin.com/careers?utm_medium=referral&utm_source=github&utm_campaign=actiongraph
