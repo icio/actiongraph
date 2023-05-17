@@ -13,6 +13,10 @@ Alongside the `-debug-actiongraph` flag is the `-debug-trace` flag which this
 program does not use, but is a similarly instructive tool which can help you
 identify parallelism and build order. For completeness, it is also shown below.
 
+> ℹ Both the `-debug-actiongraph` and `-debug-trace` flags are not supported and
+> deliberately not documented by the Go team:
+> https://github.com/golang/go/commit/8fce59eab5cb2facfafca89e047b4b43ba44785f.
+
 ## Installation
 
     go install github.com/unravelin/actiongraph@latest
@@ -179,3 +183,6 @@ Chrome/Chromium's chrome://tracing. This shows us how successfully the scheduler
 utilises the multiple cores on our machine when compiling each package:
 
 ![k9s-trace.json in perfetto](demo/k9s-perfetto.png)
+
+At the time of writing, `-debug-trace` is under development in
+https://github.com/golang/go/issues/38714.
