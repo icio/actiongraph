@@ -1,5 +1,10 @@
 # actiongraph
 
+> 👋 We wrote this to figure out why our CI had slowed down a bit and found
+> something was accidentally compiling in much more Kubernetes than an offline
+> CLI needed. If you enjoy writing performant Go too, please do considering
+> joining us in the fight against fraud: https://www.ravelin.com/careers
+
 `actiongraph` is a CLI for investigating where `go build` is spending its time
 compiling. It consumes the file written using the compile.json output by `go
 build -debug-actiongraph=compile.json`, which includes information about compile
