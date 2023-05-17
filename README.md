@@ -1,9 +1,17 @@
 # actiongraph
 
 `actiongraph` is a CLI for investigating where `go build` is spending its time
-compiling. It conumes the file written using the compile.json output by `go
+compiling. It consumes the file written using the compile.json output by `go
 build -debug-actiongraph=compile.json`, which includes information about compile
 steps and dependencies between packages.
+
+`actiongraph` can help you identify which packages take a lot of compilation
+time with `top`, summarise where that time is spent with `tree`, and identify
+where the dependencies come from with `graph --why`.
+
+Alongside the `-debug-actiongraph` flag is the `-debug-trace` flag which this
+program does not use, but is a similarly instructive tool which can help you
+identify parallelism and build order. For completeness, it is also shown below.
 
 ## Installation
 
@@ -46,13 +54,13 @@ then create our demo space:
     mkdir demo
     cd demo
 
-We want to investigate a fresh build:
+We want to investigate a fresh build, so let's clear the build cache:
 
     go clean -cache
 
-Compile and install to a temporary directory:
+Now we compile. We're going to specify body `-debug-actiongraph` and `-debug-trace` here so we can compare the results. (And we're going to send the compiled binary into a temporary directory.)
 
-    GOBIN=$(mktemp -d) go install -debug-actiongraph=k9s.json github.com/derailed/k9s@v0.27.4
+    GOBIN=$(mktemp -d) go install -debug-actiongraph=k9s.json -debug-trace=k9s-trace.json github.com/derailed/k9s@v0.27.4
 
 We should have a new file called `k9s.json` describing the actiongraph. Let's take a look at the first few entries `jq '.[:5] | .[]' -c < k9s.json`:
 
@@ -165,3 +173,9 @@ and then render it using [Graphviz](https://graphviz.org/)'s `dot`:
 which looks something like this:
 
 ![actiongraph graph --why github.com/aws/aws-sdk-go/service/s3 -f demo/k9s-s3.json](demo/k9s-s3.svg)
+
+Lastly we can open our k9s-trace.json in https://ui.perfetto.dev/ or Google
+Chrome/Chromium's chrome://tracing. This shows us how successfully the scheduler
+utilises the multiple cores on our machine when compiling each package:
+
+![k9s-trace.json in perfetto](demo/k9s-perfetto.png)
