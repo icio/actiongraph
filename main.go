@@ -36,6 +36,7 @@ func run(args ...string) error {
 
 	addTopCommand(prog)
 	addTreeCommand(prog)
+	addTypesCommand(prog)
 	addGraphCommand(prog)
 
 	prog.AddGroup(&cobra.Group{
