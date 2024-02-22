@@ -24,7 +24,7 @@ identify parallelism and build order. For completeness, it is also shown below.
 
 ## Installation
 
-    go install github.com/unravelin/actiongraph@latest
+    go install github.com/icio/actiongraph@latest
 
 ## Usage overview
 
@@ -50,7 +50,7 @@ identify parallelism and build order. For completeness, it is also shown below.
 
 ## Worked example
 
-In this example, we're going to look inside one of @unravelin's favourite CLIs,
+In this example, we're going to look inside one of @icio's favourite CLIs,
 https://k9scli.io/.
 
 First, let's check that we're all set up:
