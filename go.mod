@@ -1,4 +1,4 @@
-module github.com/unravelin/actiongraph
+module github.com/icio/actiongraph
 
 go 1.20
 
